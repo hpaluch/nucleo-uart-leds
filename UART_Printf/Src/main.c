@@ -91,11 +91,15 @@ char hpstm_getchar_from_uart(void){
 // because syscalls.c _read() function
 //        is terribly broken- it is hardcoded to read always specified number of characters before return....
 
-int hpstm_gets(char *buf, int bufSize){
+int hpstm_gets(char *buf, int bufSize,int echo){
 	int n=0;
 
 	while (n < bufSize-1){
 		char c = hpstm_getchar_from_uart();
+		if (echo && c !='\r' && c!='\n'){
+			putchar(c);
+			fflush(stdout);
+		}
 		buf[n] = c;
 		n++;
 		buf[n] = '\0';
@@ -180,7 +184,7 @@ int main(void)
   hpstm_uart_initialized = 1;
 
   /* Output a message on Hyperterminal using printf function */
-  printf("OK: STM32F767ZI-Nucleo is ready for your commands.\r\nType 'help' for list of commands.\r\n");
+  printf("\r\nSTM32F767ZI-Nucleo is ready for your commands.\r\nType 'help' for list of commands.\r\n");
 
   /* Infinite loop */
   while (1)
@@ -192,7 +196,7 @@ int main(void)
 
 	  printf("nucleo> ");
 	  fflush(stdout);
-	  ret = hpstm_gets(buf,sizeof(buf));
+	  ret = hpstm_gets(buf,sizeof(buf),1);
 	  printf("\r\n");
 #if 0
 	  printf("DEBUG: hpstmp_gets returned '");
@@ -213,7 +217,7 @@ int main(void)
 			  printf("ERROR: Unknown command '%s'\r\n",cmd);
 		  }
 	  } else if (ret == 2){
-		  printf("ERROR: Not yet implemented");
+		  printf("ERROR: Not yet implemented\r\n");
 	  } else {
 		  printf("ERROR: scanf() returned unexpected number of arguments: %d",ret);
 	  }
