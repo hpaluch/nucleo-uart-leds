@@ -78,9 +78,12 @@ char hpstm_getchar_from_uart(void){
 			// printf("DEBUG: got character (0x%x) from UART\r\n",(unsigned)c);
 			return (char)c;
 		}
-		printf("ERROR: receiving character from UART HAL_STATUS=%d\r\n"
-				"Trying again after 1s delay",(int)ret);
-		HAL_Delay(1000);
+		// timeout is NOT error for us - it may occur...
+		if (ret != HAL_TIMEOUT){
+			printf("ERROR: receiving character from UART HAL_STATUS=%d\r\n"
+					"Trying again after 1s delay",(int)ret);
+			HAL_Delay(1000);
+		}
 	}
 }
 
@@ -110,19 +113,28 @@ int hpstm_gets(char *buf, int bufSize,int echo){
 	return n;
 }
 
-#if 0
-static void hpstm_dump_printable(char *str){
+static char dumpBuf1[128];
+static char dumpBuf2[128];
+
+static char *hpstm_dump_printable(char *str, char *outBuf, int outBufSize){
+	int   i = 0;
 	char *p = NULL;
 
 	for(p=str; *p; p++){
-		if ( *p >=32 && *p <=126 ){
-			putchar(*p);
-		} else {
-			printf("<0x%x>",(unsigned)*p);
+		int outSpace = outBufSize-i-2;
+		if (outSpace <= 0){
+			return outBuf; // buffer truncated;
 		}
+		if ( *p >=32 && *p <=126 ){
+			outBuf[i] = *p;
+			i++;
+		} else {
+			i+=snprintf(outBuf+i,outSpace,"<0x%02x>",(unsigned)*p);
+		}
+		outBuf[i]=0;
 	}
+	return outBuf;
 }
-#endif
 
 
 static void hpstm_cmd_help(void){
@@ -152,7 +164,9 @@ static void hpstm_cmd_with_arg(char *cmd, char *arg1){
 		Led_TypeDef ledNumber;
 		int ledState = hpstm_parse_switch(arg1);
 		if (ledState < 0){
-			printf("ERROR: Invalid switch '%s' for '%s' command\r\n",arg1,cmd);
+			printf("ERROR: Invalid switch '%s' for '%s' command\r\n",
+					hpstm_dump_printable(arg1,dumpBuf1,sizeof(dumpBuf1)),
+					hpstm_dump_printable(cmd,dumpBuf2,sizeof(dumpBuf2)));
 			return;
 		}
 		// ok handle leds
@@ -176,7 +190,7 @@ static void hpstm_cmd_with_arg(char *cmd, char *arg1){
 		}
 
 	} else {
-		printf("ERROR: Unknown command with argument '%s'\r\n",cmd);
+		printf("ERROR: Unknown command with argument '%s'\r\n",hpstm_dump_printable(cmd,dumpBuf1,sizeof(dumpBuf1)));
 	}
 
 }
@@ -251,13 +265,16 @@ int main(void)
 	  ret = hpstm_gets(buf,sizeof(buf),1);
 	  printf("\r\n");
 #if 0
-	  printf("DEBUG: hpstmp_gets returned '");
-	  hpstm_dump_printable(buf);
-	  printf("' returned %d chars\r\n",ret);
+	  printf("DEBUG: hpstmp_gets returned '%s' n=%d\r\n",
+			  hpstm_dump_printable(buf,dumpBuf1,sizeof(dumpBuf1)));
 #endif
 
 	  ret = sscanf(buf,"%7s %7s",cmd,arg1);
-	  //printf("DEBUG: scanf(3) returned=%d cmd='%s' arg1='%s'\r\n",ret,cmd,arg1);
+#if 0
+	  printf("DEBUG: sscanf(3)=%d cmd='%s' arg1='%s'\r\n",
+			  ret,hpstm_dump_printable(cmd,dumpBuf1,sizeof(dumpBuf1)),
+			  hpstm_dump_printable(arg1,dumpBuf2,sizeof(dumpBuf2)));
+#endif
 
 	  if (ret <= 0){
 		  printf("ERROR: No command entered, type 'help' for help\r\n");
@@ -266,12 +283,12 @@ int main(void)
 		  if (strcasecmp(cmd,"help")==0){
 			  hpstm_cmd_help();
 		  } else {
-			  printf("ERROR: Unknown command '%s'\r\n",cmd);
+			  printf("ERROR: Unknown command '%s'\r\n",hpstm_dump_printable(cmd,dumpBuf1,sizeof(dumpBuf1)));
 		  }
 	  } else if (ret == 2){
 		  hpstm_cmd_with_arg(cmd,arg1);
 	  } else {
-		  printf("ERROR: scanf() returned unexpected number of arguments: %d",ret);
+		  printf("ERROR: sscanf(3) returned unexpected number of arguments: %d",ret);
 	  }
   }
 }
