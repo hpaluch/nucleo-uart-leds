@@ -6,10 +6,15 @@ from [STM NUCLEO-F767ZI] development board.
 Please read my [Getting started with ST NUCLEO F767ZI Board]
 for development setup instructions.
 
-> WARNING!
+> Following commands are implemented (from `help`):
 >
-> It is work in progress...
->
+> ```
+> help      - to show this help
+> led1 on   - to turn green LED LD1 on
+> led1 off  - to turn green LED LD1 off
+> led2 on   - to turn blue  LED LD2 on
+> led2 off  - to turn blue  LED LD2 off
+> ```
 
 ## Source tree
 
@@ -68,6 +73,11 @@ example from STM you should see after each reset on Nucleo board text like:
 ** Test finished successfully. **
 
 ```
+
+# Known bugs/limitations
+
+* Command editing (arrows, delete, backspace) does not work
+  and produce confusing results...
 
 
 

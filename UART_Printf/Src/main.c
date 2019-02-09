@@ -127,7 +127,58 @@ static void hpstm_dump_printable(char *str){
 
 static void hpstm_cmd_help(void){
 	printf("Type one of following commands:\r\n");
-	printf("help - to show this help\r\n");
+	printf("help      - to show this help\r\n");
+	printf("led1 on   - to turn green LED LD1 on\r\n");
+	printf("led1 off  - to turn green LED LD1 off\r\n");
+	printf("led2 on   - to turn blue  LED LD2 on\r\n");
+	printf("led2 off  - to turn blue  LED LD2 off\r\n");
+	printf("\r\nNOTE: command editing does NOT work.\r\n");
+}
+
+// parse "on" or "off" arguments
+static int  hpstm_parse_switch(char *arg){
+	if (strcasecmp(arg,"on")==0){
+		return 1;
+	}
+	if (strcasecmp(arg,"off")==0){
+		return 0;
+	}
+	return -1; // unknown argument
+}
+
+static void hpstm_cmd_with_arg(char *cmd, char *arg1){
+
+	if (strcasecmp(cmd,"led1")==0 || strcasecmp(cmd,"led2")==0 ){
+		Led_TypeDef ledNumber;
+		int ledState = hpstm_parse_switch(arg1);
+		if (ledState < 0){
+			printf("ERROR: Invalid switch '%s' for '%s' command\r\n",arg1,cmd);
+			return;
+		}
+		// ok handle leds
+		int ledNo = (int)cmd[3] - '0';
+		if (ledNo < 1 || ledNo > 2){
+			printf("INTERNAL ERROR: unexpected LED number %d from '%c'\r\n",ledNo,cmd[3]);
+			return;
+		}
+		if (ledNo == 2){
+			ledNumber = LED2;
+		} else {
+			ledNumber = LED1;
+		}
+		// and finally control LEDx
+		if (ledState){
+			BSP_LED_On(ledNumber);
+			printf("OK: LED%d turned ON\r\n",ledNo);
+		} else {
+			BSP_LED_Off(ledNumber);
+			printf("OK: LED%d turned OFF\r\n",ledNo);
+		}
+
+	} else {
+		printf("ERROR: Unknown command with argument '%s'\r\n",cmd);
+	}
+
 }
 
 /**
@@ -155,8 +206,9 @@ int main(void)
   /* Configure the system clock to 216 MHz */
   SystemClock_Config();
 
-  /* Initialize BSP Led for LED3 */
-  BSP_LED_Init(LED3);
+  BSP_LED_Init(LED1); // green user LED
+  BSP_LED_Init(LED2); // blue  user LED
+  BSP_LED_Init(LED3); // red LED to signal fatal errors
 
   /*##-1- Configure the UART peripheral ######################################*/
   /* Put the USART peripheral in the Asynchronous mode (UART Mode) */
@@ -205,7 +257,7 @@ int main(void)
 #endif
 
 	  ret = sscanf(buf,"%7s %7s",cmd,arg1);
-	  printf("DEBUG: scanf(3) returned=%d cmd='%s' arg1='%s'\r\n",ret,cmd,arg1);
+	  //printf("DEBUG: scanf(3) returned=%d cmd='%s' arg1='%s'\r\n",ret,cmd,arg1);
 
 	  if (ret <= 0){
 		  printf("ERROR: No command entered, type 'help' for help\r\n");
@@ -217,7 +269,7 @@ int main(void)
 			  printf("ERROR: Unknown command '%s'\r\n",cmd);
 		  }
 	  } else if (ret == 2){
-		  printf("ERROR: Not yet implemented\r\n");
+		  hpstm_cmd_with_arg(cmd,arg1);
 	  } else {
 		  printf("ERROR: scanf() returned unexpected number of arguments: %d",ret);
 	  }
