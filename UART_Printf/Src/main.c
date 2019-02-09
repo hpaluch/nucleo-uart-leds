@@ -120,6 +120,12 @@ static void hpstm_dump_printable(char *str){
 }
 #endif
 
+
+static void hpstm_cmd_help(void){
+	printf("Type one of following commands:\r\n");
+	printf("help - to show this help\r\n");
+}
+
 /**
   * @brief  Main program
   * @param  None
@@ -196,7 +202,21 @@ int main(void)
 
 	  ret = sscanf(buf,"%7s %7s",cmd,arg1);
 	  printf("DEBUG: scanf(3) returned=%d cmd='%s' arg1='%s'\r\n",ret,cmd,arg1);
-	  printf("TODO: command implementation\r\n");
+
+	  if (ret <= 0){
+		  printf("ERROR: No command entered, type 'help' for help\r\n");
+	  } else if (ret == 1){
+		  // handle command without argument.
+		  if (strcasecmp(cmd,"help")==0){
+			  hpstm_cmd_help();
+		  } else {
+			  printf("ERROR: Unknown command '%s'\r\n",cmd);
+		  }
+	  } else if (ret == 2){
+		  printf("ERROR: Not yet implemented");
+	  } else {
+		  printf("ERROR: scanf() returned unexpected number of arguments: %d",ret);
+	  }
   }
 }
 
