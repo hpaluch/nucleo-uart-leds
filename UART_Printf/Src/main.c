@@ -36,7 +36,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 /** @addtogroup STM32F7xx_HAL_Examples
   * @{
   */
@@ -49,6 +48,7 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+static int hpstm_uart_initialized = 0;
 /* UART handler declaration */
 UART_HandleTypeDef UartHandle;
 
@@ -65,6 +65,60 @@ static void CPU_CACHE_Enable(void);
 static void Error_Handler(void);
 
 /* Private functions ---------------------------------------------------------*/
+
+// get character from UART - it never returns error
+char hpstm_getchar_from_uart(void){
+	HAL_StatusTypeDef ret = HAL_OK;
+	uint8_t c=0;
+
+	while(1){
+		c=0;
+		ret = HAL_UART_Receive(&UartHandle,&c,1,0xffff);
+		if (ret == HAL_OK){
+			// printf("DEBUG: got character (0x%x) from UART\r\n",(unsigned)c);
+			return (char)c;
+		}
+		printf("ERROR: receiving character from UART HAL_STATUS=%d\r\n"
+				"Trying again after 1s delay",(int)ret);
+		HAL_Delay(1000);
+	}
+}
+
+
+// WARNING!
+// We can't just redefine `int __io_getchar(void)`
+// and then use scanf(3),
+// because syscalls.c _read() function
+//        is terribly broken- it is hardcoded to read always specified number of characters before return....
+
+int hpstm_gets(char *buf, int bufSize){
+	int n=0;
+
+	while (n < bufSize-1){
+		char c = hpstm_getchar_from_uart();
+		buf[n] = c;
+		n++;
+		buf[n] = '\0';
+		if (c == '\r' || c == '\n'){
+			return n;
+		}
+	}
+	return n;
+}
+
+#if 0
+static void hpstm_dump_printable(char *str){
+	char *p = NULL;
+
+	for(p=str; *p; p++){
+		if ( *p >=32 && *p <=126 ){
+			putchar(*p);
+		} else {
+			printf("<0x%x>",(unsigned)*p);
+		}
+	}
+}
+#endif
 
 /**
   * @brief  Main program
@@ -117,14 +171,32 @@ int main(void)
     /* Initialization Error */
     Error_Handler();
   }
+  hpstm_uart_initialized = 1;
 
   /* Output a message on Hyperterminal using printf function */
-  printf("\n\r UART Printf Example: retarget the C library printf function to the UART\n\r");
-  printf("** Test finished successfully. ** \n\r");
+  printf("OK: STM32F767ZI-Nucleo is ready for your commands.\r\nType 'help' for list of commands.\r\n");
 
   /* Infinite loop */
   while (1)
   {
+	  char buf[20] = {0};
+	  char cmd[8]  = {0};
+	  char arg1[8] = {0};
+	  int ret=0;
+
+	  printf("nucleo> ");
+	  fflush(stdout);
+	  ret = hpstm_gets(buf,sizeof(buf));
+	  printf("\r\n");
+#if 0
+	  printf("DEBUG: hpstmp_gets returned '");
+	  hpstm_dump_printable(buf);
+	  printf("' returned %d chars\r\n",ret);
+#endif
+
+	  ret = sscanf(buf,"%7s %7s",cmd,arg1);
+	  printf("DEBUG: scanf(3) returned=%d cmd='%s' arg1='%s'\r\n",ret,cmd,arg1);
+	  printf("TODO: command implementation\r\n");
   }
 }
 
@@ -141,6 +213,7 @@ PUTCHAR_PROTOTYPE
 
   return ch;
 }
+
 
 /**
   * @brief  System Clock Configuration
@@ -226,6 +299,11 @@ static void Error_Handler(void)
 {
   /* Turn LED3 on */
   BSP_LED_On(LED3);
+
+  if (hpstm_uart_initialized){
+	  printf("ERROR: Fatal error occurred. System HALTED.\r\n");
+  }
+
   while (1)
   {
   }
